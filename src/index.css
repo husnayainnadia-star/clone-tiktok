@@ -1,0 +1,153 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-reel-darker text-white font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-reel-gray-light rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-reel-text-muted;
+  }
+}
+
+@layer components {
+  /* Video feed snap scrolling */
+  .video-feed {
+    scroll-snap-type: y mandatory;
+    -webkit-overflow-scrolling: touch;
+    overflow-y: scroll;
+    height: 100dvh;
+  }
+
+  .video-item {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+
+  /* Button styles */
+  .btn-primary {
+    @apply bg-reel-pink text-white font-semibold px-6 py-2.5 rounded-full 
+           hover:bg-opacity-90 active:scale-95 transition-all duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-outline {
+    @apply border border-white/30 text-white font-semibold px-6 py-2.5 rounded-full 
+           hover:bg-white/10 active:scale-95 transition-all duration-150;
+  }
+
+  /* Glass morphism card */
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl;
+  }
+
+  /* Action button (right side of video) */
+  .action-btn {
+    @apply flex flex-col items-center gap-1 cursor-pointer select-none;
+  }
+
+  .action-btn-icon {
+    @apply w-11 h-11 flex items-center justify-center rounded-full bg-black/30 
+           backdrop-blur-sm border border-white/10
+           hover:bg-white/20 active:scale-90 transition-all duration-150;
+  }
+
+  /* Input styles */
+  .input-field {
+    @apply w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3
+           text-white placeholder-reel-text-muted focus:outline-none 
+           focus:border-reel-pink/50 focus:bg-white/8 transition-all duration-200;
+  }
+
+  /* Tab styles */
+  .tab-btn {
+    @apply flex-1 py-3 text-sm font-semibold transition-all duration-200 relative;
+  }
+
+  .tab-btn.active {
+    @apply text-white;
+  }
+
+  .tab-btn:not(.active) {
+    @apply text-reel-text-muted hover:text-white/70;
+  }
+
+  /* Skeleton loading */
+  .skeleton {
+    @apply bg-white/5 animate-pulse rounded;
+  }
+
+  /* Avatar */
+  .avatar {
+    @apply rounded-full object-cover flex-shrink-0;
+  }
+
+  /* Bottom nav */
+  .nav-item {
+    @apply flex flex-col items-center gap-1 cursor-pointer transition-colors duration-150;
+  }
+}
+
+@layer utilities {
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .text-shadow {
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  }
+
+  .bg-white\/8 {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+
+  /* Prevent text selection on interactive elements */
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
