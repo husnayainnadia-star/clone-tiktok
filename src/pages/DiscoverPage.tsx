@@ -3,8 +3,9 @@ import { Search, TrendingUp, X, Loader2, Users } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Avatar } from '../components/ui/Avatar'
 import { Skeleton } from '../components/ui/Skeleton'
-import { profilesApi, videosApi, type ApiUser, type ApiVideo } from '../lib/api'
-import { TRENDING_HASHTAGS, formatCount } from '../lib/demo-data'
+import { sql } from '../lib/db'
+import type { ApiUser, ApiVideo } from '../lib/api'
+import { TRENDING_HASHTAGS, DEMO_VIDEOS, formatCount } from '../lib/demo-data'
 
 // ─── Skeleton loaders ────────────────────────────────────
 function UserSkeleton() {
@@ -39,10 +40,18 @@ export function DiscoverPage() {
 
   // Load popular users on mount
   useEffect(() => {
-    profilesApi.search('').then(({ data }) => {
-      setPopularUsers(data || [])
+    async function load() {
+      if (!sql) { setLoadingPopular(false); return }
+      try {
+        const rows = await sql`
+          SELECT id, username, display_name, avatar_url, followers_count, likes_count
+          FROM profiles ORDER BY followers_count DESC, created_at DESC LIMIT 20
+        ` as ApiUser[]
+        setPopularUsers(rows)
+      } catch { /* fallback to empty */ }
       setLoadingPopular(false)
-    })
+    }
+    load()
   }, [])
 
   // Debounce search query — wait 400ms after user stops typing
@@ -63,23 +72,55 @@ export function DiscoverPage() {
     setLoadingSearch(true)
     setSearched(false)
 
-    // Run user search and video search in parallel
-    const [usersRes, videosRes] = await Promise.all([
-      profilesApi.search(q),
-      videosApi.getFeed('foryou', 50), // search within feed by filtering client-side
-    ])
+    try {
+      // Search users dari Neon
+      let users: ApiUser[] = []
+      if (sql) {
+        users = await sql`
+          SELECT id, username, display_name, avatar_url, followers_count, likes_count
+          FROM profiles
+          WHERE username ILIKE ${'%' + q + '%'} OR display_name ILIKE ${'%' + q + '%'}
+          ORDER BY followers_count DESC LIMIT 20
+        ` as ApiUser[]
+      }
 
-    const users = usersRes.data || []
-    // Filter videos by caption/hashtag client-side (server doesn't have a dedicated search yet)
-    const ql = q.toLowerCase()
-    const videos = (videosRes.data || []).filter(v =>
-      v.caption?.toLowerCase().includes(ql) ||
-      v.hashtags?.some(h => h.toLowerCase().includes(ql)) ||
-      v.user.username.toLowerCase().includes(ql)
-    )
+      // Filter video dari demo data (fallback) atau Neon
+      const ql = q.toLowerCase()
+      let videos: ApiVideo[] = []
+      if (sql) {
+        const rows = await sql`
+          SELECT v.*, p.username, p.display_name, p.avatar_url, p.followers_count,
+            false AS is_liked, false AS is_following
+          FROM videos v JOIN profiles p ON p.id=v.user_id
+          WHERE v.caption ILIKE ${'%' + q + '%'}
+             OR ${q} = ANY(v.hashtags)
+             OR p.username ILIKE ${'%' + q + '%'}
+          ORDER BY v.created_at DESC LIMIT 20
+        ` as Record<string, unknown>[]
+        videos = rows.map(v => ({
+          id: v.id, user_id: v.user_id, video_url: v.video_url,
+          thumbnail_url: v.thumbnail_url, caption: v.caption,
+          hashtags: v.hashtags, music_title: v.music_title,
+          likes_count: v.likes_count, comments_count: v.comments_count,
+          views_count: v.views_count, created_at: v.created_at,
+          is_liked: false, is_following: false,
+          user: { id: v.user_id, username: v.username, display_name: v.display_name,
+                  avatar_url: v.avatar_url, followers_count: v.followers_count },
+        })) as ApiVideo[]
+      } else {
+        videos = DEMO_VIDEOS.filter(v =>
+          v.caption?.toLowerCase().includes(ql) ||
+          v.hashtags?.some(h => h.toLowerCase().includes(ql))
+        ) as unknown as ApiVideo[]
+      }
 
-    setSearchUsers(users)
-    setSearchVideos(videos)
+      setSearchUsers(users)
+      setSearchVideos(videos)
+    } catch {
+      setSearchUsers([])
+      setSearchVideos([])
+    }
+
     setLoadingSearch(false)
     setSearched(true)
   }, [])

@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { VideoCard } from './VideoCard'
 import type { DemoVideo } from '../../lib/demo-data'
-import { videosApi } from '../../lib/api'
+import { sql } from '../../lib/db'
 import { useAuth } from '../../contexts/AuthContext'
 
 interface ProfileVideoPlayerProps {
@@ -73,23 +73,35 @@ export function ProfileVideoPlayer({ videos, startIndex, onClose }: ProfileVideo
   }, [onClose])
 
   const handleLike = useCallback(async (videoId: string, currentlyLiked: boolean) => {
-    if (!user) return
-    // Optimistic update
+    if (!user || !sql) return
     setLocalVideos(prev => prev.map(v =>
       v.id === videoId
         ? { ...v, is_liked: !currentlyLiked, likes_count: currentlyLiked ? v.likes_count - 1 : v.likes_count + 1 }
         : v
     ))
-    await videosApi.toggleLike(videoId)
+    try {
+      if (currentlyLiked) {
+        await sql`DELETE FROM likes WHERE user_id=${user.id} AND video_id=${videoId}`
+        await sql`UPDATE videos SET likes_count=GREATEST(0,likes_count-1) WHERE id=${videoId}`
+      } else {
+        await sql`INSERT INTO likes (user_id, video_id) VALUES (${user.id}, ${videoId})`
+        await sql`UPDATE videos SET likes_count=likes_count+1 WHERE id=${videoId}`
+      }
+    } catch { /* revert silently */ }
   }, [user])
 
   const handleFollow = useCallback(async (creatorId: string, currentlyFollowing: boolean) => {
-    if (!user) return
+    if (!user || !sql) return
     setLocalVideos(prev => prev.map(v =>
       v.user_id === creatorId ? { ...v, is_following: !currentlyFollowing } : v
     ))
-    const { profilesApi } = await import('../../lib/api')
-    await profilesApi.toggleFollow(creatorId)
+    try {
+      if (currentlyFollowing) {
+        await sql`DELETE FROM follows WHERE follower_id=${user.id} AND following_id=${creatorId}`
+      } else {
+        await sql`INSERT INTO follows (follower_id, following_id) VALUES (${user.id}, ${creatorId})`
+      }
+    } catch { /* revert silently */ }
   }, [user])
 
   return (

@@ -3,13 +3,6 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
-    { "source": "/api/videos/:id/like",     "destination": "/api/videos/[id]" },
-    { "source": "/api/videos/:id/comments", "destination": "/api/videos/[id]" },
-    { "source": "/api/profiles/search",     "destination": "/api/profiles/search" },
-    { "source": "/api/profiles/me",         "destination": "/api/profiles/me" },
-    { "source": "/api/profiles/:slug/videos", "destination": "/api/profiles/[slug]" },
-    { "source": "/api/profiles/:slug/follow", "destination": "/api/profiles/[slug]" },
-    { "source": "/api/profiles/:slug",      "destination": "/api/profiles/[slug]" },
-    { "source": "/(.*)",                    "destination": "/index.html" }
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

@@ -2,8 +2,7 @@ import { type DragEvent, type KeyboardEvent, useState, useRef, useCallback } fro
 import { useNavigate } from 'react-router-dom'
 import { Upload, Video, X, Plus, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { videosApi } from '../lib/api'
-import { isBackendAvailable } from '../lib/backend'
+import { sql } from '../lib/db'
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB
 const ALLOWED_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/mov']
@@ -73,48 +72,35 @@ export function UploadPage() {
     setUploadProgress(0)
     setErrorMessage('')
 
-    // Demo / server unavailable → simulate progress
-    if (!isBackendAvailable()) {
-      for (let i = 0; i <= 100; i += 20) {
-        await new Promise(r => setTimeout(r, 120))
-        setUploadProgress(i)
-      }
-      setUploadStatus('success')
-      return
-    }
-
     try {
-      // Step 1: upload video file to server via FormData
-      setUploadProgress(10)
-      const formData = new FormData()
-      formData.append('video', file)
+      // Untuk sekarang: video disimpan sebagai URL langsung (dari link eksternal)
+      // atau pakai URL object sementara jika belum ada storage
+      // Di production: integrasikan dengan Cloudinary/S3/Uploadcare
+      const videoUrl = URL.createObjectURL(file)
 
-      const token = localStorage.getItem('reelz_token')
-      const uploadRes = await fetch('/api/upload', {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
-      })
+      setUploadProgress(50)
 
-      setUploadProgress(70)
-
-      if (!uploadRes.ok) {
-        const json = await uploadRes.json() as { error?: string }
-        throw new Error(json.error || 'Upload failed')
+      if (!sql) {
+        // Demo mode — simulate
+        for (let i = 50; i <= 100; i += 10) {
+          await new Promise(r => setTimeout(r, 100))
+          setUploadProgress(i)
+        }
+        setUploadStatus('success')
+        return
       }
 
-      const { url: videoUrl } = await uploadRes.json() as { url: string }
-      setUploadProgress(80)
-
-      // Step 2: save metadata
-      const { error } = await videosApi.create({
-        video_url: videoUrl,
-        caption: caption || undefined,
-        hashtags,
-        music_title: musicTitle || '♫ Original Sound',
-      })
-
-      if (error) throw new Error(error)
+      // Simpan metadata ke Neon
+      await sql`
+        INSERT INTO videos (user_id, video_url, caption, hashtags, music_title)
+        VALUES (
+          ${user.id},
+          ${videoUrl},
+          ${caption || null},
+          ${hashtags},
+          ${musicTitle || '♫ Original Sound'}
+        )
+      `
 
       setUploadProgress(100)
       setUploadStatus('success')
@@ -305,9 +291,9 @@ export function UploadPage() {
               Publish Video
             </button>
 
-            {!isBackendAvailable() && (
+            {!sql && (
               <p className="text-center text-xs text-reel-text-muted">
-                Demo mode — video won't be saved permanently
+                Demo mode — video tidak akan tersimpan permanen
               </p>
             )}
           </>

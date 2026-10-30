@@ -1,47 +1,8 @@
-// API client — semua request ke /api/* ditangani Vercel Serverless Functions
-const BASE = '/api'
-
-function getToken(): string | null {
-  return localStorage.getItem('reelz_token')
-}
-
-async function request<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<{ data: T | null; error: string | null }> {
-  const token = getToken()
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
-  }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-
-  try {
-    const res = await fetch(`${BASE}${path}`, { ...options, headers })
-
-    // Tangani response yang bukan JSON (misal HTML 404 dari Vercel)
-    const contentType = res.headers.get('content-type') || ''
-    if (!contentType.includes('application/json')) {
-      if (res.status === 404 || res.status === 0) {
-        return { data: null, error: 'Server API belum terhubung. Pastikan backend sudah running.' }
-      }
-      return { data: null, error: `Server error (${res.status})` }
-    }
-
-    const json = await res.json()
-
-    if (!res.ok) {
-      return { data: null, error: (json as { error?: string }).error || `HTTP ${res.status}` }
-    }
-
-    return { data: json as T, error: null }
-  } catch (err) {
-    return { data: null, error: err instanceof Error ? err.message : 'Network error' }
-  }
-}
-
-// ── Auth ─────────────────────────────────────────────────
+/**
+ * api.ts — tidak dipakai lagi.
+ * Semua query sekarang langsung ke Neon via src/lib/db.ts
+ * File ini dipertahankan agar tidak ada import error di komponen lama.
+ */
 
 export interface ApiUser {
   id: string
@@ -54,27 +15,6 @@ export interface ApiUser {
   followers_count: number
   likes_count: number
 }
-
-export interface AuthResponse {
-  token: string
-  user: ApiUser
-}
-
-export const authApi = {
-  signup: (email: string, password: string, username: string) =>
-    request<AuthResponse>('/auth/signup', {
-      method: 'POST',
-      body: JSON.stringify({ email, password, username }),
-    }),
-
-  login: (email: string, password: string) =>
-    request<AuthResponse>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    }),
-}
-
-// ── Videos ───────────────────────────────────────────────
 
 export interface ApiVideo {
   id: string
@@ -111,57 +51,26 @@ export interface ApiComment {
   }
 }
 
-export const videosApi = {
-  getFeed: (feed: 'foryou' | 'following' = 'foryou', limit = 20, offset = 0) =>
-    request<ApiVideo[]>(`/videos?feed=${feed}&limit=${limit}&offset=${offset}`),
-
-  create: (data: {
-    video_url: string
-    thumbnail_url?: string
-    caption?: string
-    hashtags?: string[]
-    music_title?: string
-  }) =>
-    request<ApiVideo>('/videos', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-
-  toggleLike: (videoId: string) =>
-    request<{ liked: boolean }>(`/videos/${videoId}/like`, { method: 'POST' }),
-
-  getComments: (videoId: string) =>
-    request<ApiComment[]>(`/videos/${videoId}/comments`),
-
-  addComment: (videoId: string, content: string) =>
-    request<ApiComment>(`/videos/${videoId}/comments`, {
-      method: 'POST',
-      body: JSON.stringify({ content }),
-    }),
+// Stub — tidak melakukan request apapun
+export const authApi = {
+  signup: async () => ({ data: null, error: 'Use AuthContext directly' }),
+  login: async () => ({ data: null, error: 'Use AuthContext directly' }),
 }
 
-// ── Profiles ─────────────────────────────────────────────
+export const videosApi = {
+  getFeed: async () => ({ data: null, error: 'Use useVideos hook directly' }),
+  create: async () => ({ data: null, error: 'Use useVideos hook directly' }),
+  toggleLike: async () => ({ data: null, error: null }),
+  getComments: async () => ({ data: null, error: null }),
+  addComment: async () => ({ data: null, error: null }),
+}
 
 export const profilesApi = {
-  getByUsername: (username: string) =>
-    request<ApiUser & { is_following: boolean }>(`/profiles/${username}`),
-
-  getVideos: (username: string) =>
-    request<ApiVideo[]>(`/profiles/${username}/videos`),
-
-  updateMe: (data: { display_name?: string; bio?: string }) =>
-    request<ApiUser>('/profiles/me', {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    }),
-
-  toggleFollow: (profileId: string) =>
-    request<{ following: boolean }>(`/profiles/${profileId}/follow`, { method: 'POST' }),
-
-  search: (q: string) =>
-    request<ApiUser[]>(`/profiles/search?q=${encodeURIComponent(q)}`),
+  getByUsername: async () => ({ data: null, error: null }),
+  getVideos: async () => ({ data: null, error: null }),
+  updateMe: async () => ({ data: null, error: null }),
+  toggleFollow: async () => ({ data: null, error: null }),
+  search: async () => ({ data: null, error: null }),
 }
 
-// Health check — used to detect if server is running
-export const checkApiHealth = () =>
-  request<{ status: string }>('/health')
+export const checkApiHealth = async () => ({ data: { status: 'direct-neon' }, error: null })

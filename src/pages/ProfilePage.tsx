@@ -5,7 +5,8 @@ import { Avatar } from '../components/ui/Avatar'
 import { Skeleton } from '../components/ui/Skeleton'
 import { ProfileVideoPlayer } from '../components/video/ProfileVideoPlayer'
 import { useAuth } from '../contexts/AuthContext'
-import { profilesApi, type ApiVideo, type ApiUser } from '../lib/api'
+import { sql } from '../lib/db'
+import type { ApiVideo, ApiUser } from '../lib/api'
 import { formatCount } from '../lib/demo-data'
 import type { DemoVideo } from '../lib/demo-data'
 
@@ -128,18 +129,35 @@ export function ProfilePage() {
     setLoadingProfile(true)
     setNotFound(false)
 
-    const { data, error } = await profilesApi.getByUsername(username)
-
-    if (error || !data) {
-      // If API is down or 404, try to show current user info locally
-      if (isOwnProfile && currentUser) {
-        setProfileUser({ ...currentUser, is_following: false })
-      } else {
-        setNotFound(true)
+    try {
+      if (!sql) {
+        if (isOwnProfile && currentUser) {
+          setProfileUser({ ...currentUser, is_following: false })
+        } else setNotFound(true)
+        setLoadingProfile(false)
+        return
       }
-    } else {
-      setProfileUser(data)
-      setFollowing(data.is_following ?? false)
+
+      const userId = currentUser?.id
+      const rows = await sql`
+        SELECT p.*,
+          ${userId
+            ? sql`EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=${userId} AND f.following_id=p.id)`
+            : sql`false`
+          } AS is_following
+        FROM profiles p WHERE p.username=${username}
+      ` as (ApiUser & { is_following: boolean })[]
+
+      if (rows.length === 0) {
+        if (isOwnProfile && currentUser) setProfileUser({ ...currentUser, is_following: false })
+        else setNotFound(true)
+      } else {
+        setProfileUser(rows[0])
+        setFollowing(rows[0].is_following ?? false)
+      }
+    } catch {
+      if (isOwnProfile && currentUser) setProfileUser({ ...currentUser, is_following: false })
+      else setNotFound(true)
     }
 
     setLoadingProfile(false)
@@ -150,11 +168,39 @@ export function ProfilePage() {
     if (!username) return
     setLoadingVideos(true)
 
-    const { data } = await profilesApi.getVideos(username)
-    setVideos(data || [])
+    try {
+      if (!sql) { setVideos([]); setLoadingVideos(false); return }
+
+      const userId = currentUser?.id
+      const rows = await sql`
+        SELECT v.id, v.user_id, v.video_url, v.thumbnail_url, v.caption,
+               v.hashtags, v.music_title, v.likes_count, v.comments_count,
+               v.views_count, v.created_at,
+          ${userId
+            ? sql`EXISTS(SELECT 1 FROM likes l WHERE l.video_id=v.id AND l.user_id=${userId})`
+            : sql`false`
+          } AS is_liked,
+          false AS is_following,
+          p.username, p.display_name, p.avatar_url, p.followers_count
+        FROM videos v JOIN profiles p ON p.id=v.user_id
+        WHERE p.username=${username}
+        ORDER BY v.created_at DESC LIMIT 60
+      ` as Record<string, unknown>[]
+
+      setVideos(rows.map(v => ({
+        id: v.id, user_id: v.user_id, video_url: v.video_url,
+        thumbnail_url: v.thumbnail_url, caption: v.caption,
+        hashtags: v.hashtags, music_title: v.music_title,
+        likes_count: v.likes_count, comments_count: v.comments_count,
+        views_count: v.views_count, created_at: v.created_at,
+        is_liked: v.is_liked, is_following: v.is_following,
+        user: { id: v.user_id, username: v.username, display_name: v.display_name,
+                avatar_url: v.avatar_url, followers_count: v.followers_count },
+      })) as ApiVideo[])
+    } catch { setVideos([]) }
 
     setLoadingVideos(false)
-  }, [username])
+  }, [username, currentUser])
 
   useEffect(() => {
     fetchProfile()
@@ -163,24 +209,27 @@ export function ProfilePage() {
 
   // ── Follow / Unfollow ──────────────────────────────────
   const handleFollow = async () => {
-    if (!currentUser || !profileUser) return
-    if (isOwnProfile) return
+    if (!currentUser || !profileUser || isOwnProfile || !sql) return
 
     setFollowLoading(true)
     const prev = following
-    setFollowing(!prev) // optimistic
+    setFollowing(!prev)
 
-    const { error } = await profilesApi.toggleFollow(profileUser.id)
-
-    if (error) {
-      setFollowing(prev) // revert
-    } else {
-      // Update local follower count
+    try {
+      if (prev) {
+        await sql`DELETE FROM follows WHERE follower_id=${currentUser.id} AND following_id=${profileUser.id}`
+        await sql`UPDATE profiles SET following_count=GREATEST(0,following_count-1) WHERE id=${currentUser.id}`
+        await sql`UPDATE profiles SET followers_count=GREATEST(0,followers_count-1) WHERE id=${profileUser.id}`
+      } else {
+        await sql`INSERT INTO follows (follower_id, following_id) VALUES (${currentUser.id}, ${profileUser.id})`
+        await sql`UPDATE profiles SET following_count=following_count+1 WHERE id=${currentUser.id}`
+        await sql`UPDATE profiles SET followers_count=followers_count+1 WHERE id=${profileUser.id}`
+      }
       setProfileUser(p => p ? {
-        ...p,
-        followers_count: prev ? p.followers_count - 1 : p.followers_count + 1,
+        ...p, followers_count: prev ? p.followers_count - 1 : p.followers_count + 1,
       } : p)
-    }
+    } catch { setFollowing(prev) }
+
     setFollowLoading(false)
   }
 

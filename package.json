@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n \"API,WEB\" -c \"cyan,green\" \"npm run server\" \"vite\"",
+    "dev": "vite",
     "server": "tsx watch --env-file=.env.local server/index.ts",
     "server:once": "tsx --env-file=.env.local server/index.ts",
     "start": "node --import tsx/esm server/index.ts",
