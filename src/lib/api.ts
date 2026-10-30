@@ -24,6 +24,16 @@ async function request<T>(
 
   try {
     const res = await fetch(`${BASE}${path}`, { ...options, headers })
+
+    // Tangani response yang bukan JSON (misal HTML 404 dari Vercel)
+    const contentType = res.headers.get('content-type') || ''
+    if (!contentType.includes('application/json')) {
+      if (res.status === 404 || res.status === 0) {
+        return { data: null, error: 'Server API belum terhubung. Pastikan backend sudah running.' }
+      }
+      return { data: null, error: `Server error (${res.status})` }
+    }
+
     const json = await res.json()
 
     if (!res.ok) {
