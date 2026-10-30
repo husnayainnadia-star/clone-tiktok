@@ -1,13 +1,6 @@
-import { Hono } from 'hono'
-import { handle } from '@hono/vercel'
-import { corsMiddleware } from './_lib/cors'
+import { json, handleOptions } from './_lib/response'
 
-const app = new Hono().basePath('/api')
-app.use('*', corsMiddleware)
-
-app.get('/health', (c) => c.json({
-  status: 'ok',
-  timestamp: new Date().toISOString(),
-}))
-
-export const GET = handle(app)
+export default async function handler(req: Request): Promise<Response> {
+  if (req.method === 'OPTIONS') return handleOptions()
+  return json({ status: 'ok', timestamp: new Date().toISOString() })
+}

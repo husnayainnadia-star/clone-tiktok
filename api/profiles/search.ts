@@ -1,20 +1,18 @@
-import { Hono } from 'hono'
-import { handle } from '@hono/vercel'
 import { sql } from '../_lib/db'
-import { corsMiddleware } from '../_lib/cors'
+import { json, handleOptions } from '../_lib/response'
 
-const app = new Hono().basePath('/api')
-app.use('*', corsMiddleware)
+export default async function handler(req: Request): Promise<Response> {
+  if (req.method === 'OPTIONS') return handleOptions()
+  if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405)
 
-app.get('/profiles/search', async (c) => {
-  const q = (c.req.query('q') || '').trim()
+  const q = new URL(req.url).searchParams.get('q')?.trim() || ''
 
   if (!q) {
     const rows = await sql`
       SELECT id, username, display_name, avatar_url, followers_count, likes_count
       FROM profiles ORDER BY followers_count DESC, created_at DESC LIMIT 20
     `
-    return c.json(rows)
+    return json(rows)
   }
 
   const rows = await sql`
@@ -23,7 +21,5 @@ app.get('/profiles/search', async (c) => {
     WHERE username ILIKE ${'%' + q + '%'} OR display_name ILIKE ${'%' + q + '%'}
     ORDER BY followers_count DESC LIMIT 20
   `
-  return c.json(rows)
-})
-
-export const GET = handle(app)
+  return json(rows)
+}

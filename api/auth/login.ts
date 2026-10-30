@@ -1,19 +1,16 @@
-import { Hono } from 'hono'
-import { handle } from '@hono/vercel'
 import bcrypt from 'bcryptjs'
 import { sql } from '../_lib/db'
 import { signToken } from '../_lib/auth'
-import { corsMiddleware } from '../_lib/cors'
+import { json, handleOptions } from '../_lib/response'
 
-const app = new Hono().basePath('/api')
-app.use('*', corsMiddleware)
+export default async function handler(req: Request): Promise<Response> {
+  if (req.method === 'OPTIONS') return handleOptions()
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
-app.post('/auth/login', async (c) => {
-  const { email, password } = await c.req.json()
+  const { email, password } = await req.json()
 
-  if (!email || !password) {
-    return c.json({ error: 'email dan password wajib diisi' }, 400)
-  }
+  if (!email || !password)
+    return json({ error: 'email dan password wajib diisi' }, 400)
 
   const rows = await sql`
     SELECT uc.password_hash, uc.email,
@@ -24,10 +21,10 @@ app.post('/auth/login', async (c) => {
     WHERE uc.email = ${email.toLowerCase()}
   `
 
-  if (rows.length === 0) return c.json({ error: 'Email atau password salah' }, 401)
+  if (rows.length === 0) return json({ error: 'Email atau password salah' }, 401)
 
   const valid = await bcrypt.compare(password, rows[0].password_hash as string)
-  if (!valid) return c.json({ error: 'Email atau password salah' }, 401)
+  if (!valid) return json({ error: 'Email atau password salah' }, 401)
 
   const user = {
     id: rows[0].id, email: rows[0].email,
@@ -39,7 +36,5 @@ app.post('/auth/login', async (c) => {
   }
 
   const token = await signToken(user.id as string, user.username as string)
-  return c.json({ token, user })
-})
-
-export const POST = handle(app)
+  return json({ token, user })
+}
