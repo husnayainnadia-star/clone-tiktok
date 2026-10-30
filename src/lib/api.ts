@@ -1,10 +1,5 @@
-// API client — talks to the Hono server
-// Dev: Vite proxy forward /api → localhost:3001
-// Production: VITE_API_URL env var points to Railway/Render API URL
-
-const BASE = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL}/api`
-  : '/api'
+// API client — semua request ke /api/* ditangani Vercel Serverless Functions
+const BASE = '/api'
 
 function getToken(): string | null {
   return localStorage.getItem('reelz_token')

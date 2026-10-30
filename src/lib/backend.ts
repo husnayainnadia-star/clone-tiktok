@@ -1,12 +1,9 @@
 /**
  * Backend availability detection.
  * Probe /api/health saat app pertama load.
- * Hasil dicache agar tidak re-fetch setiap render.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL}/api`
-  : '/api'
+const API_BASE = '/api'
 
 type Status = 'unknown' | 'available' | 'unavailable'
 
@@ -17,9 +14,8 @@ const readyPromise = new Promise<boolean>(r => { resolvePromise = r })
 async function probe(): Promise<void> {
   try {
     const res = await fetch(`${API_BASE}/health`, {
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(5000),
     })
-    // Pastikan response adalah JSON, bukan HTML 404
     const ct = res.headers.get('content-type') || ''
     status = (res.ok && ct.includes('application/json')) ? 'available' : 'unavailable'
   } catch {
