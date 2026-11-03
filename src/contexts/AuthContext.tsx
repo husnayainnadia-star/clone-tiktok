@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signUp = async (email: string, password: string, username: string) => {
-    if (!sql) return { error: 'Database tidak terkonfigurasi' }
+    if (!sql) return { error: 'Database belum terhubung. Pastikan VITE_DATABASE_URL sudah diset di Vercel Environment Variables, lalu Redeploy.' }
 
     if (username.length < 3 || !/^[a-z0-9_]+$/.test(username))
       return { error: 'Username minimal 3 karakter (huruf kecil, angka, _)' }
@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signIn = async (email: string, password: string) => {
-    if (!sql) return { error: 'Database tidak terkonfigurasi' }
+    if (!sql) return { error: 'Database belum terhubung. Pastikan VITE_DATABASE_URL sudah diset di Vercel Environment Variables, lalu Redeploy.' }
 
     try {
       const rows = await sql`

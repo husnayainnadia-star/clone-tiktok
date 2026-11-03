@@ -1,13 +1,29 @@
 /**
  * Neon database — koneksi langsung dari browser via HTTP transport
- * @neondatabase/serverless menggunakan WebSocket/HTTP, tidak perlu server terpisah
  */
-import { neon } from '@neondatabase/serverless'
+import { neon, type NeonQueryFunction } from '@neondatabase/serverless'
 
-const databaseUrl = import.meta.env.VITE_DATABASE_URL as string
+// Coba semua kemungkinan nama env var
+const databaseUrl =
+  import.meta.env.VITE_DATABASE_URL ||
+  import.meta.env.VITE_NEON_DATABASE_URL ||
+  import.meta.env.DATABASE_URL ||
+  ''
 
 if (!databaseUrl) {
-  console.warn('VITE_DATABASE_URL not set — database features will not work')
+  console.error(
+    '[Reelz] Database URL tidak ditemukan.\n' +
+    'Tambahkan VITE_DATABASE_URL di:\n' +
+    '- .env.local (untuk development)\n' +
+    '- Vercel Environment Variables (untuk production)'
+  )
 }
 
-export const sql = databaseUrl ? neon(databaseUrl) : null
+// Log untuk debug (akan muncul di browser console)
+console.log('[Reelz] DB URL ada:', !!databaseUrl)
+
+export const sql: NeonQueryFunction<false, false> | null = databaseUrl
+  ? neon(databaseUrl)
+  : null
+
+export const isDbConnected = !!databaseUrl

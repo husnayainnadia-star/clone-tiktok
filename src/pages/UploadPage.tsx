@@ -26,16 +26,14 @@ export function UploadPage() {
 
   const handleFileSelect = useCallback((selectedFile: File) => {
     setErrorMessage('')
-
     if (!ALLOWED_TYPES.includes(selectedFile.type)) {
-      setErrorMessage('Please select a valid video file (MP4, WebM, MOV)')
+      setErrorMessage('Pilih file video yang valid (MP4, WebM, MOV)')
       return
     }
     if (selectedFile.size > MAX_FILE_SIZE) {
-      setErrorMessage('Video must be smaller than 100 MB')
+      setErrorMessage('Video harus lebih kecil dari 100 MB')
       return
     }
-
     setFile(selectedFile)
     setPreviewUrl(URL.createObjectURL(selectedFile))
   }, [])
@@ -73,15 +71,13 @@ export function UploadPage() {
     setErrorMessage('')
 
     try {
-      // Untuk sekarang: video disimpan sebagai URL langsung (dari link eksternal)
-      // atau pakai URL object sementara jika belum ada storage
-      // Di production: integrasikan dengan Cloudinary/S3/Uploadcare
-      const videoUrl = URL.createObjectURL(file)
-
+      // Untuk video URL: pakai object URL sementara (untuk demo)
+      // Di production: upload ke Cloudinary/R2/S3 dulu, lalu simpan URL-nya
+      const videoUrl = previewUrl || URL.createObjectURL(file)
       setUploadProgress(50)
 
       if (!sql) {
-        // Demo mode — simulate
+        // Demo mode — simulasi tanpa DB
         for (let i = 50; i <= 100; i += 10) {
           await new Promise(r => setTimeout(r, 100))
           setUploadProgress(i)
@@ -90,7 +86,7 @@ export function UploadPage() {
         return
       }
 
-      // Simpan metadata ke Neon
+      // Simpan metadata video ke Neon
       await sql`
         INSERT INTO videos (user_id, video_url, caption, hashtags, music_title)
         VALUES (
@@ -106,7 +102,7 @@ export function UploadPage() {
       setUploadStatus('success')
     } catch (err) {
       setUploadStatus('error')
-      setErrorMessage(err instanceof Error ? err.message : 'Upload failed')
+      setErrorMessage(err instanceof Error ? err.message : 'Upload gagal')
     }
   }
 
@@ -114,11 +110,11 @@ export function UploadPage() {
     return (
       <div className="h-screen flex flex-col items-center justify-center gap-4 bg-reel-darker px-4">
         <div className="text-4xl">🔒</div>
-        <h2 className="font-bold text-xl">Sign in to upload</h2>
+        <h2 className="font-bold text-xl">Masuk untuk upload</h2>
         <p className="text-reel-text-muted text-sm text-center">
-          Create an account or sign in to share your videos.
+          Buat akun atau masuk untuk berbagi video.
         </p>
-        <button onClick={() => navigate('/auth')} className="btn-primary">Sign In</button>
+        <button onClick={() => navigate('/auth')} className="btn-primary">Masuk</button>
       </div>
     )
   }
@@ -130,7 +126,7 @@ export function UploadPage() {
         <button
           onClick={() => navigate(-1)}
           className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
-          aria-label="Back"
+          aria-label="Kembali"
         >
           <ArrowLeft size={20} />
         </button>
@@ -156,12 +152,12 @@ export function UploadPage() {
               <Video size={28} className="text-reel-text-muted" />
             </div>
             <div className="text-center">
-              <p className="font-semibold">Select or drag a video</p>
-              <p className="text-sm text-reel-text-muted mt-1">MP4, WebM, or MOV · Max 100 MB</p>
+              <p className="font-semibold">Pilih atau drag video</p>
+              <p className="text-sm text-reel-text-muted mt-1">MP4, WebM, atau MOV · Maks 100 MB</p>
             </div>
             <div className="flex items-center gap-2 bg-reel-pink/10 border border-reel-pink/30 rounded-full px-4 py-2">
               <Upload size={16} className="text-reel-pink" />
-              <span className="text-sm text-reel-pink font-medium">Choose file</span>
+              <span className="text-sm text-reel-pink font-medium">Pilih file</span>
             </div>
             <input
               ref={fileInputRef}
@@ -169,7 +165,7 @@ export function UploadPage() {
               accept={ALLOWED_TYPES.join(',')}
               className="hidden"
               onChange={e => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
-              aria-label="Select video file"
+              aria-label="Pilih file video"
             />
           </div>
         ) : (
@@ -178,14 +174,13 @@ export function UploadPage() {
             <button
               onClick={() => { setFile(null); setPreviewUrl(null) }}
               className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center hover:bg-black/80 transition-colors"
-              aria-label="Remove video"
+              aria-label="Hapus video"
             >
               <X size={16} />
             </button>
           </div>
         )}
 
-        {/* Error */}
         {errorMessage && (
           <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
             <AlertCircle size={16} className="text-red-400 flex-shrink-0" />
@@ -193,11 +188,10 @@ export function UploadPage() {
           </div>
         )}
 
-        {/* Progress */}
         {uploadStatus === 'uploading' && (
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-reel-text-muted">Uploading…</span>
+              <span className="text-reel-text-muted">Mengupload…</span>
               <span className="font-medium">{uploadProgress}%</span>
             </div>
             <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -209,19 +203,17 @@ export function UploadPage() {
           </div>
         )}
 
-        {/* Success */}
         {uploadStatus === 'success' && (
           <div className="flex flex-col items-center gap-3 py-6">
             <CheckCircle size={48} className="text-green-400" />
-            <h3 className="font-bold text-lg">Video published!</h3>
+            <h3 className="font-bold text-lg">Video berhasil dipublish!</h3>
             <p className="text-reel-text-muted text-sm text-center">
-              Your video is live and ready to be discovered.
+              Video kamu sudah live dan siap ditemukan.
             </p>
-            <button onClick={() => navigate('/')} className="btn-primary">Go to Feed</button>
+            <button onClick={() => navigate('/')} className="btn-primary">Ke Feed</button>
           </div>
         )}
 
-        {/* Form fields */}
         {file && uploadStatus === 'idle' && (
           <>
             <div>
@@ -229,7 +221,7 @@ export function UploadPage() {
               <textarea
                 value={caption}
                 onChange={e => setCaption(e.target.value)}
-                placeholder="Describe your video…"
+                placeholder="Deskripsikan videomu…"
                 className="input-field min-h-[80px] resize-none"
                 maxLength={500}
                 rows={3}
@@ -238,7 +230,7 @@ export function UploadPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Hashtags</label>
+              <label className="block text-sm font-medium mb-2">Hashtag</label>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -253,7 +245,7 @@ export function UploadPage() {
                   type="button"
                   onClick={addHashtag}
                   className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors flex-shrink-0"
-                  aria-label="Add hashtag"
+                  aria-label="Tambah hashtag"
                 >
                   <Plus size={18} />
                 </button>
@@ -266,7 +258,7 @@ export function UploadPage() {
                       className="flex items-center gap-1 bg-reel-cyan/10 border border-reel-cyan/20 text-reel-cyan rounded-full px-3 py-1 text-sm"
                     >
                       #{tag}
-                      <button onClick={() => removeHashtag(tag)} aria-label={`Remove #${tag}`}>
+                      <button onClick={() => removeHashtag(tag)} aria-label={`Hapus #${tag}`}>
                         <X size={12} />
                       </button>
                     </span>
@@ -276,7 +268,7 @@ export function UploadPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Music / Audio title</label>
+              <label className="block text-sm font-medium mb-2">Judul musik / audio</label>
               <input
                 type="text"
                 value={musicTitle}
@@ -290,12 +282,6 @@ export function UploadPage() {
             <button onClick={handlePublish} className="btn-primary w-full">
               Publish Video
             </button>
-
-            {!sql && (
-              <p className="text-center text-xs text-reel-text-muted">
-                Demo mode — video tidak akan tersimpan permanen
-              </p>
-            )}
           </>
         )}
       </div>
